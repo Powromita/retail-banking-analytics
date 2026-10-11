@@ -9,6 +9,8 @@ and where cross-sell opportunities sit.
 
 > The data is **synthetic** (5,000 customers, 12 months, INR) and generated with a fixed seed, so every result is reproducible.
 > Profitability assumptions (spreads, fees, cost-to-serve) are documented in `sql/01_views.sql`.
+>
+> ![Power BI dashboard](reports/figures/dashboard.png)
 
 ## Architecture
 ```
