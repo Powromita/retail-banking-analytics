@@ -28,7 +28,7 @@ python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\a
 pip install -r requirements.txt
 python run_pipeline.py                                 # data -> SQLite -> model -> exports
 uvicorn src.api:app --reload                           # http://127.0.0.1:8000
-PYTHONPATH=. python tests/smoke_api.py                 # optional: checks every endpoint
+$env:PYTHONPATH="."; python tests/smoke_api.py     # Windows PowerShell
 ```
 
 ## What it does
@@ -67,8 +67,10 @@ tests/smoke_api.py     endpoint smoke test
 ```
 
 ## Using your own data
-Replace the three CSVs in `data/raw/` (`customers`, `products`, `monthly_activity`; same columns) and rerun
-`python run_pipeline.py`. Nothing else changes.
+Replace the three CSVs in `data/raw/` (`customers`, `products`, `monthly_activity`; same columns), then run:
+python -m src.etl
+python -m src.analytics
+Do not run `run_pipeline.py`: it regenerates synthetic data and overwrites your CSVs.
 
 ## Publish to GitHub
 ```bash
