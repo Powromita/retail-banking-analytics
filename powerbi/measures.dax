@@ -1,0 +1,59 @@
+// ===== Power BI measures (26 KPIs). Create a table "_Measures" (Enter Data, one blank column) and paste these in. =====
+
+// --- Customer base & churn
+Total Customers = DISTINCTCOUNT ( dim_customer[customer_id] )
+Churned Customers = CALCULATE ( [Total Customers], dim_customer[churned] = 1 )
+Churn Rate % = DIVIDE ( [Churned Customers], [Total Customers] )
+Avg Tenure (Years) = AVERAGE ( dim_customer[tenure_months] ) / 12
+Complaints per 100 Customers = DIVIDE ( SUM ( dim_customer[complaints_12m] ), [Total Customers] ) * 100
+
+// --- Profitability
+Total Revenue = SUM ( dim_customer[revenue] )
+Total Cost = SUM ( dim_customer[cost] )
+Net Profit = [Total Revenue] - [Total Cost]
+Profit Margin % = DIVIDE ( [Net Profit], [Total Revenue] )
+Avg Profit per Customer = DIVIDE ( [Net Profit], [Total Customers] )
+
+// --- Customer lifetime value
+Total CLV = SUM ( dim_customer[clv] )
+Avg CLV = AVERAGE ( dim_customer[clv] )
+
+// --- Risk
+At-Risk Customers = CALCULATE ( [Total Customers], dim_customer[is_at_risk] = 1 )
+At-Risk Rate % = DIVIDE ( [At-Risk Customers], [Total Customers] )
+Profit at Risk = CALCULATE ( [Net Profit], dim_customer[is_at_risk] = 1 )
+Profit at Risk % = DIVIDE ( [Profit at Risk], [Net Profit] )
+
+// --- Credit & engagement
+Avg Credit Utilization % = AVERAGE ( dim_customer[avg_utilization] )
+High Utilization Customers = CALCULATE ( [Total Customers], dim_customer[avg_utilization] > 0.8 )
+Avg Monthly Transactions = AVERAGE ( fact_monthly_activity[txn_count] )
+Avg Monthly Logins = AVERAGE ( fact_monthly_activity[digital_logins] )
+Total Card Spend = SUM ( fact_monthly_activity[card_spend] )
+Digital Adoption % =
+DIVIDE (
+    CALCULATE ( [Total Customers], dim_customer[preferred_channel] IN { "Digital", "Hybrid" } ),
+    [Total Customers]
+)
+
+// --- Product depth & cross-sell
+Avg Products per Customer = AVERAGE ( dim_customer[n_products] )
+Cross-Sell Opportunities =
+CALCULATE ( [Total Customers], dim_customer[next_best_product] <> "none", dim_customer[is_at_risk] = 0 )
+Cross-Sell Opportunity Rate % = DIVIDE ( [Cross-Sell Opportunities], [Total Customers] )
+
+// --- Time intelligence (needs dim_month[month_start] marked as the date table)
+Card Spend MoM % =
+VAR prev = CALCULATE ( [Total Card Spend], DATEADD ( dim_month[month_start], -1, MONTH ) )
+RETURN DIVIDE ( [Total Card Spend] - prev, prev )
+
+// ===== Calculated column on dim_customer (for the churn-by-utilization chart) =====
+Utilization Band =
+SWITCH (
+    TRUE (),
+    ISBLANK ( dim_customer[avg_utilization] ), "No card",
+    dim_customer[avg_utilization] < 0.3, "< 30%",
+    dim_customer[avg_utilization] < 0.6, "30-60%",
+    dim_customer[avg_utilization] < 0.8, "60-80%",
+    "> 80%"
+)

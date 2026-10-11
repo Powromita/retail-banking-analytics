@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retail Banking Customer Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#F2F4F1;--ink:#17262B;--muted:#5B6B6F;--line:#D3DAD6;--teal:#0E6E6B;--amber:#C9871F;--red:#B42A2A;--slate:#7C98A6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:40px 24px 64px}
+h1{font:500 clamp(26px,4vw,40px)/1.2 "IBM Plex Serif",Georgia,serif;margin:0 0 8px;max-width:22em}
+.sub{color:var(--muted);margin:0 0 32px;max-width:60ch}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border-top:2px solid var(--ink);border-bottom:1px solid var(--line)}
+.kpi{padding:16px 16px 14px 0;margin-right:16px;border-right:1px solid var(--line)}
+.kpi:last-child{border-right:0}
+.kpi b{display:block;font:600 26px/1.2 "IBM Plex Sans";font-variant-numeric:tabular-nums}
+.kpi span{color:var(--muted);font-size:13px}
+section{margin-top:44px}
+h2{font-size:17px;font-weight:600;margin:0 0 4px}
+.note{color:var(--muted);font-size:13px;margin:0 0 14px;max-width:70ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:36px}
+.chart{position:relative;height:280px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 12px 9px 0;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:13px}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.tbl{overflow-x:auto}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px 24px;margin:12px 0 20px}
+.metrics b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.metrics span{font-size:13px;color:var(--muted)}
+.imgs{display:flex;flex-wrap:wrap;gap:24px}.imgs img{max-width:100%;height:auto;width:340px}
+@media (prefers-reduced-motion:no-preference){.kpis{animation:in .5s ease-out}@keyframes in{from{opacity:0}}}
+a:focus-visible,button:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+  <h1 id="hero">Loading customer analytics…</h1>
+  <p class="sub">5,000 retail customers, September 2025 to August 2026. Profit is annual, in rupees; churn risk comes from the model below.</p>
+  <div class="kpis" id="kpis"></div>
+
+  <section>
+    <h2>Where profit sits, and who is leaving</h2>
+    <p class="note">Segments combine customer value (top quarter by profit) with churn risk (model probability of 30% or more).</p>
+    <div class="grid">
+      <div><div class="chart"><canvas id="cSeg"></canvas></div></div>
+      <div class="tbl"><table id="tSeg"></table></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Churn drivers</h2>
+    <div class="grid">
+      <div><p class="note">Churn rate by credit utilization</p><div class="chart"><canvas id="cUtil"></canvas></div></div>
+      <div><p class="note">Churn rate by tenure</p><div class="chart"><canvas id="cTen"></canvas></div></div>
+      <div><p class="note">Monthly card spend (₹ lakh)</p><div class="chart"><canvas id="cTrend"></canvas></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Products and cross-sell</h2>
+    <p class="note">Customers who hold more products leave less often. Cross-sell counts exclude customers already at risk.</p>
+    <div class="grid">
+      <div><div class="chart"><canvas id="cProd"></canvas></div></div>
+      <div><div class="chart"><canvas id="cCross"></canvas></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Save list: highest-value customers likely to leave</h2>
+    <div class="tbl"><table id="tRisk"></table></div>
+  </section>
+
+  <section>
+    <h2>Churn model evaluation</h2>
+    <p class="note" id="modelNote"></p>
+    <div class="metrics" id="metrics"></div>
+    <div class="imgs">
+      <img src="/reports/figures/roc_curve.png" alt="ROC curve">
+      <img src="/reports/figures/feature_importance.png" alt="Feature importance">
+      <img src="/reports/figures/decile_lift.png" alt="Decile lift">
+    </div>
+  </section>
+</main>
+<script>
+const C={teal:'#0E6E6B',amber:'#C9871F',red:'#B42A2A',slate:'#7C98A6'};
+Chart.defaults.font.family='"IBM Plex Sans",sans-serif';Chart.defaults.color='#5B6B6F';
+const get=u=>fetch(u).then(r=>r.json());
+const inr=n=>{const a=Math.abs(n);return (n<0?'-':'')+'₹'+(a>=1e7?(a/1e7).toFixed(2)+' Cr':a>=1e5?(a/1e5).toFixed(1)+' L':Math.round(a).toLocaleString('en-IN'))};
+const bar=(id,labels,data,color,fmt,horizontal)=>new Chart(id,{type:'bar',data:{labels,datasets:[{data,backgroundColor:color}]},
+  options:{indexAxis:horizontal?'y':'x',maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)}}},scales:{[horizontal?'x':'y']:{grid:{color:'#E1E6E2'},ticks:{callback:v=>fmt(v)}},[horizontal?'y':'x']:{grid:{display:false}}}}});
+const pct=v=>v+'%';
+const th=(cols)=>'<tr>'+cols.map(c=>`<th class="${c[1]?'n':''}">${c[0]}</th>`).join('')+'</tr>';
+
+(async()=>{
+ const [k,seg,util,ten,trend,prod,cross,risk,model]=await Promise.all(
+  ['kpis','segments','churn_by_utilization','churn_by_tenure','monthly_trend','product_mix','cross_sell','top_at_risk','model'].map(n=>get('/api/'+n)));
+ document.getElementById('hero').textContent=`${inr(k.profit_at_risk)} of annual profit sits with customers the model expects to leave`;
+ const kp=[[k.customers.toLocaleString('en-IN'),'Customers'],[k.churn_rate_pct+'%','Churn rate'],[inr(k.profit),'Net profit'],[k.margin_pct+'%','Profit margin'],
+  [inr(k.avg_clv),'Avg 5-year CLV'],[k.avg_utilization_pct+'%','Avg card utilization'],[k.avg_products,'Products per customer'],
+  [k.at_risk_customers.toLocaleString('en-IN'),'Customers at risk'],[k.profit_at_risk_pct+'%','Profit at risk'],[k.digital_adoption_pct+'%','Digital or hybrid users']];
+ document.getElementById('kpis').innerHTML=kp.map(([v,l])=>`<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('');
+
+ bar('cSeg',seg.map(s=>s.segment),seg.map(s=>s.profit),C.teal,inr,true);
+ document.getElementById('tSeg').innerHTML=th([['Segment'],['Customers',1],['Avg CLV',1],['Churn rate',1]])+
+  seg.map(s=>`<tr><td>${s.segment}</td><td class="n">${s.customers.toLocaleString('en-IN')}</td><td class="n">${inr(s.avg_clv)}</td><td class="n">${s.churn_rate_pct}%</td></tr>`).join('');
+ bar('cUtil',util.map(r=>r.band),util.map(r=>r.churn_rate_pct),C.red,pct);
+ bar('cTen',ten.map(r=>r.bucket),ten.map(r=>r.churn_rate_pct),C.amber,pct);
+ new Chart('cTrend',{type:'line',data:{labels:trend.map(r=>r.month),datasets:[{data:trend.map(r=>r.card_spend/1e5),borderColor:C.teal,backgroundColor:C.teal,tension:.3,pointRadius:3}]},
+  options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:'#E1E6E2'}},x:{grid:{display:false}}}}});
+ new Chart('cProd',{type:'bar',data:{labels:prod.map(r=>r.product.replace('_',' ')),datasets:[
+  {label:'Penetration %',data:prod.map(r=>r.penetration_pct),backgroundColor:C.slate},{label:'Holder churn %',data:prod.map(r=>r.holder_churn_pct),backgroundColor:C.red}]},
+  options:{maintainAspectRatio:false,scales:{y:{grid:{color:'#E1E6E2'}},x:{grid:{display:false}}}}});
+ bar('cCross',cross.map(r=>r.product.replace('_',' ')),cross.map(r=>r.customers),C.teal,v=>v.toLocaleString('en-IN'),true);
+ document.getElementById('tRisk').innerHTML=th([['Customer'],['City'],['Churn risk',1],['Annual profit',1],['5-yr CLV',1],['Next best product'],['Action']])+
+  risk.map(r=>`<tr><td>${r.customer_id}</td><td>${r.city}</td><td class="n">${r.churn_prob_pct}%</td><td class="n">${inr(r.annual_profit)}</td><td class="n">${inr(r.clv)}</td><td>${r.next_best_product.replace('_',' ')}</td><td>${r.recommended_action}</td></tr>`).join('');
+
+ const b=model.models[model.best_model];
+ document.getElementById('modelNote').textContent=`Best model: ${model.best_model.replace('_',' ')}, evaluated on ${model.test_size.toLocaleString('en-IN')} held-out customers (base churn ${(model.base_churn_rate*100).toFixed(1)}%). Customer scores come from 5-fold out-of-fold predictions, so no customer is scored by a model that saw them.`;
+ document.getElementById('metrics').innerHTML=[['ROC AUC',b.roc_auc],['PR AUC',b.pr_auc],['Precision',b.precision],['Recall',b.recall],['F1',b.f1],['5-fold CV AUC',b.cv_auc_mean]]
+  .map(([l,v])=>`<div><b>${v.toFixed(3)}</b><span>${l}</span></div>`).join('');
+})().catch(e=>{document.getElementById('hero').textContent='Could not load data. Run python run_pipeline.py, then restart the server.';console.error(e)});
+</script>
+</body>
+</html>

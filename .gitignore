@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+data/bank.db
+.DS_Store
+*.pbix.bak

@@ -1,0 +1,12 @@
+{
+  "name": "Retail Banking Intelligence",
+  "dataColors": ["#0E6E6B", "#C9871F", "#B42A2A", "#7C98A6", "#4F9D9A", "#8A5A44", "#A3B18A", "#5B6B6F"],
+  "background": "#F2F4F1",
+  "foreground": "#17262B",
+  "tableAccent": "#0E6E6B",
+  "textClasses": {
+    "title": {"fontFace": "Segoe UI Semibold", "fontSize": 14, "color": "#17262B"},
+    "label": {"fontFace": "Segoe UI", "fontSize": 11, "color": "#5B6B6F"},
+    "callout": {"fontFace": "Segoe UI Semibold", "fontSize": 28, "color": "#17262B"}
+  }
+}
