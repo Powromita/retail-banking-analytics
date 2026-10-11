@@ -44,8 +44,14 @@ Cross-Sell Opportunity Rate % = DIVIDE ( [Cross-Sell Opportunities], [Total Cust
 
 // --- Time intelligence (needs dim_month[month_start] marked as the date table)
 Card Spend MoM % =
-VAR prev = CALCULATE ( [Total Card Spend], DATEADD ( dim_month[month_start], -1, MONTH ) )
-RETURN DIVIDE ( [Total Card Spend] - prev, prev )
+VAR cur = MAX ( dim_month[month_start] )
+VAR prev =
+    CALCULATE (
+        [Total Card Spend],
+        FILTER ( ALL ( dim_month ), dim_month[month_start] = EDATE ( cur, -1 ) )
+    )
+RETURN
+    IF ( ISBLANK ( prev ), BLANK (), DIVIDE ( [Total Card Spend] - prev, prev ) )
 
 // ===== Calculated column on dim_customer (for the churn-by-utilization chart) =====
 Utilization Band =
